@@ -1,0 +1,9 @@
+services:
+  subscriber:
+    build:
+      context: ./
+      dockerfile: ./docker/subscriber/Dockerfile
+  mailbot:
+    build:
+      context: ./
+      dockerfile: ./docker/mailbot/Dockerfile
