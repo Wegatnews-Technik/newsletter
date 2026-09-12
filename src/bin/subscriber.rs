@@ -16,7 +16,7 @@ fn check_email(email: &str) -> bool {
     }
     let email: Vec<&str> = email.split("@").collect();
     // Index without Panic
-    let (Some(user), Some(domain)) = (email.get(0), email.get(1)) else {
+    let (Some(user), Some(domain)) = (email.first(), email.get(1)) else {
         return false;
     };
     // Check lenght of local part and domain part
@@ -30,7 +30,7 @@ fn check_email(email: &str) -> bool {
     }
 
     if !allowed_chars(user) || !allowed_chars(domain) {
-        return  false;
+        return false;
     }
 
     if !domain.contains(".") {
@@ -41,11 +41,11 @@ fn check_email(email: &str) -> bool {
 }
 
 fn allowed_chars(string: &str) -> bool {
-    if !string.trim().chars().all(|x| match x {
-        'a'..='z' | '0'..='9' | '-' | '.' | '_' => true,
-        'ä' | 'ö' | 'ü' | 'ß' => true,
-        _ => false,
-    }) {
+    if !string
+        .trim()
+        .chars()
+        .all(|x| matches!(x, 'a'..='z' | '0'..='9' | '-' | '.' | '_' | 'ä' | 'ö' | 'ü' | 'ß'))
+    {
         return false;
     }
 
@@ -57,24 +57,15 @@ fn allowed_chars(string: &str) -> bool {
                 return false;
             }
             dot = true;
-        }
-        else {
+        } else {
             dot = false;
         }
     }
 
     // Check for trailing special characters
-    if let (Some(first), Some(last)) = (string.chars().next(), string.chars().next_back()){
-        match first {
-            '-' | '.' | '_' => return false,
-            _ => true,
-        };
-        match last {
-            '-' | '.' | '_' => false,
-            _ => true,
-        }
-    }
-    else {
+    if let (Some(first), Some(last)) = (string.chars().next(), string.chars().next_back()) {
+        !matches!(first, '-' | '.' | '_') && !matches!(last, '-' | '.' | '_')
+    } else {
         false
     }
 }
