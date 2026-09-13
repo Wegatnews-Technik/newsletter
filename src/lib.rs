@@ -1,3 +1,15 @@
+/// Checks if an E-Mail adress is valid or not:
+/// true -> valid false -> invalid
+/// # Checked properties
+/// - email is not longer than 254 chars
+/// - contains exactly one local part and one domain part
+/// - both parts are non-empty, domain is at least 3 chars long
+/// - only contains the following characters:
+///     - 'a'..='z' | '0'..='9' | '-' | '.' | '_' | 'ä' | 'ö' | 'ü' | 'ß'
+/// - No trailing underscores, dots and hyphens
+/// - No consecutive dots
+/// # Panic
+/// Panics if email.chars() has more than usize::MAX elements
 pub fn check_email(email: &str) -> bool {
     if email.chars().count() >= 254 {
         return false;
