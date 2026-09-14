@@ -2,7 +2,12 @@
 **Warning: This s just a demo for now**
 ## Container Planning
 ![docs/archtitecture.png](docs/architecture.png)
-
+### used Software
+| Function | Software 
+| Webserver| NGINX? |
+| DB | PostgreSQL |
+| DB library for Rust | [SQLx](https://crates.io/crates/sqlx) |
+| Mail library | ? |
 ## Project structure
 - docker/  # All Container related files
   - subscriber/  # Conatains *subscriber* Container
