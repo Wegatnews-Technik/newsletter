@@ -8,7 +8,12 @@
 | Webserver| NGINX? |
 | DB | PostgreSQL |
 | DB library for Rust | [SQLx](https://crates.io/crates/sqlx) |
-| Mail library | ? |
+| Mail library | [lettre](https://crates.io/crates/lettre)? |
+### E-Mail verification:
+1. E-Mail format input validation(lib.rss)
+2. [Check if it exists](https://crates.io/crates/check-if-email-exists)
+3. Verification link
+After all these steps were successfull, the address is written to the DB
 ## Project structure
 - docker/  # All Container related files
   - subscriber/  # Conatains *subscriber* Container
