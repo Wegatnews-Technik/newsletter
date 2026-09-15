@@ -3,7 +3,12 @@ services:
     build:
       context: ./
       dockerfile: ./docker/subscriber/Dockerfile
+    secrets:
+      - pg-subscriber
   mailbot:
     build:
       context: ./
       dockerfile: ./docker/mailbot/Dockerfile
+secrets:
+  pg-subscriber:
+    file: ./.secrets/pg-subscriber
