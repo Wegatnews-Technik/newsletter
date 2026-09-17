@@ -1,7 +1,5 @@
-use newsletter;
 use sqlx::{pool, postgres::PgPoolOptions};
 use std::{fs, io};
-use tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -20,8 +18,9 @@ async fn main() -> Result<(), sqlx::Error> {
 
     let mut input = String::new();
     io::stdin().read_line(&mut input).expect("Input Error"); // TODO: RISK OF PANIC
-    if newsletter::check_email(&input.trim().to_lowercase()) {
+    if newsletter::check_email_syntax(&input.trim().to_lowercase()) {
         println!("{input}");
+        println!("{:?}", newsletter::email_exists(input.trim()).await);
     } else {
         println!("Rejected");
     }

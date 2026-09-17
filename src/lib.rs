@@ -1,3 +1,5 @@
+use check_if_email_exists::{self, CheckEmailInputBuilder, Reachable};
+
 /// Checks if an E-Mail adress is valid or not:
 /// true -> valid false -> invalid
 /// # Checked properties
@@ -10,7 +12,7 @@
 /// - No consecutive dots
 /// # Panic
 /// Panics if email.chars() has more than usize::MAX elements
-pub fn check_email(email: &str) -> bool {
+pub fn check_email_syntax(email: &str) -> bool {
     if email.chars().count() >= 254 {
         return false;
     }
@@ -70,9 +72,28 @@ fn allowed_chars(string: &str) -> bool {
     }
 }
 
+pub async fn email_exists(email: &str) -> Result<(), String> {
+    let input = match CheckEmailInputBuilder::default()
+        .to_email(email.to_string())
+        .build()
+    {
+        Ok(input) => input,
+        Err(e) => return Err(format!("{:?}", e)),
+    };
+
+    let result = check_if_email_exists::check_email(&input).await;
+
+    match result.is_reachable {
+        Reachable::Safe => Ok(()),
+        Reachable::Risky => Err("E-Mail is risky".to_string()),
+        Reachable::Invalid => Err("E-Mail is Invalid".to_string()),
+        Reachable::Unknown => Err("Could not check E-Mail".to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::check_email;
+    use crate::check_email_syntax;
 
     #[test]
     fn test_check_email() {
@@ -97,10 +118,10 @@ mod tests {
         ];
 
         for mail in valid_emails {
-            assert!(check_email(mail), "{mail} should be valid");
+            assert!(check_email_syntax(mail), "{mail} should be valid");
         }
         for mail in invalid_emails {
-            assert!(!check_email(mail), "{mail} should be invalid");
+            assert!(!check_email_syntax(mail), "{mail} should be invalid");
         }
     }
 }

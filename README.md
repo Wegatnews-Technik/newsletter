@@ -30,3 +30,11 @@ After all these steps were successfull, the address is written to the DB
 - compose.yaml # configures all needed Containers
 - .secrets/  # not commited. Contains secrets for the Containers(e.g. DB Password)
 - .gitignore
+
+## Project TODO:
+- [x] Input verification
+- [ ] Database setup
+- [ ] mailbot
+- [ ] Webserver setup
+- [ ] Extenting tests (for lib crate)
+- [ ] Extending Project Docs/Comments
