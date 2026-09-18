@@ -17,6 +17,8 @@ services:
       context: ./
       dockerfile: ./docker/subscriber/Dockerfile
     container_name: subscriber
+    depends_on:
+      - db
     secrets:
       - pg-subscriber
   mailbot:
