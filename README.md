@@ -32,7 +32,9 @@ After all these steps were successfull, the address is written to the DB
 - .gitignore
 
 ## Project TODO:
-- [x] Input verification
+- [ ] Input verification
+  - [x] Check if email exists
+  - [ ] Validation E-mail
 - [ ] Database setup
 - [ ] mailbot
 - [ ] Webserver setup
