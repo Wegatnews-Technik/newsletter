@@ -31,12 +31,23 @@ After all these steps were successfull, the address is written to the DB
 - .secrets/  # not commited. Contains secrets for the Containers(e.g. DB Password)
 - .gitignore
 
+## Deploy
+### Prerequisites
+- create DB secrets:
+  - `.secrets/pg-subscriber` # Postgres-password for *subscriber*
+- Ensure correct SELinux label: container_file_t
+
+run `docker compose up`
+
+
 ## Project TODO:
 - [ ] Input verification
   - [x] Check if email exists
   - [ ] Validation E-mail
 - [ ] Database setup
+  - [ ] Allow Password rotation
 - [ ] mailbot
 - [ ] Webserver setup
+- [ ] Better Error Handling
 - [ ] Extenting tests (for lib crate)
 - [ ] Extending Project Docs/Comments

@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+sqlx = { version = "0.9", features = [ "runtime-tokio", "postgres" ] }
+tokio = {version = "1.53.1", features = ["full"] }
 check-if-email-exists = "0.11.7"
-tokio = "1.53.1"
