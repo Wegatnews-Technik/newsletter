@@ -43,7 +43,9 @@ run `docker compose up`
 ## Project TODO:
 - [x] Input verification
 - [ ] Database setup
+  - [ ] Allow Password rotation
 - [ ] mailbot
 - [ ] Webserver setup
+- [ ] Better Error Handling
 - [ ] Extenting tests (for lib crate)
 - [ ] Extending Project Docs/Comments
