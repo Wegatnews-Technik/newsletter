@@ -8,6 +8,9 @@ services:
     volumes:
       - ./init-db:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql
+    post_start:
+      - command: /docker-entrypoint-initdb.d/run-every-start.sh
+        user: postgres
     secrets:
       - postgres-master-password
       - pg-subscriber

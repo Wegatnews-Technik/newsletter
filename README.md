@@ -41,7 +41,7 @@ After all these steps were successfull, the address is written to the DB
   - `.secrets/pg-mailbot` # Postgres-password for *mailbot*
   - `.secrets/postgres-master-password` # Postgres admin password
 
-You can do that by typing `openssl rand -base64 32 > *filename*`
+You can do that by typing `openssl rand -hex 32 > *filename*`
 
 2. Ensure correct SELinux label: `container_file_t` for all secrets and init-db contents
 3. run `docker compose up`
@@ -52,7 +52,7 @@ You can do that by typing `openssl rand -base64 32 > *filename*`
   - [x] Check if email exists
   - [ ] Validation E-mail
 - [x] Database setup
-- [ ] Allow Password rotation
+- [x] Allow Password rotation
 - [ ] mailbot
 - [ ] Webserver setup
 - [x] Better Error-handling
