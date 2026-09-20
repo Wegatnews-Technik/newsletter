@@ -7,3 +7,5 @@ edition = "2024"
 sqlx = { version = "0.9", features = [ "runtime-tokio", "postgres" ] }
 tokio = {version = "1.53.1", features = ["full"] }
 check-if-email-exists = "0.11.7"
+anyhow = "1.0.104"
+thiserror = "2.0.20"
