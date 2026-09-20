@@ -10,7 +10,7 @@
 | DB library for Rust | [SQLx](https://crates.io/crates/sqlx) |
 | Mail library | [lettre](https://crates.io/crates/lettre)? |
 ### E-Mail verification:
-1. E-Mail format input validation(lib.rss)
+1. E-Mail format input validation(lib.rs)
 2. [Check if it exists](https://crates.io/crates/check-if-email-exists)
 3. Verification link
 After all these steps were successfull, the address is written to the DB
@@ -25,6 +25,9 @@ After all these steps were successfull, the address is written to the DB
     - subscriber.rs  # Takes Input and puts it in a DB  
     - mailbot.rs     # Automatically sends E-Mails to subscribed Inboxes
   - lib.rs       # Shared functionality between subscriber and mailbot(Input Validatio lays here)
+- init-db  # Database config
+  - init.sql # Creates the needed table
+  - users.sh # Creates Postgres users with minimal permissions
 - Cargo.toml # Rust project config
 - Cargo.lock # Dependecy lockfile
 - compose.yaml # configures all needed Containers
@@ -33,21 +36,26 @@ After all these steps were successfull, the address is written to the DB
 
 ## Deploy
 ### Prerequisites
-- create DB secrets:
+1. create DB secrets:
   - `.secrets/pg-subscriber` # Postgres-password for *subscriber*
-- Ensure correct SELinux label: container_file_t
+  - `.secrets/pg-mailbot` # Postgres-password for *mailbot*
+  - `.secrets/postgres-master-password` # Postgres admin password
 
-run `docker compose up`
+You can do that by typing `openssl rand -base64 32 > *filename*`
+
+2. Ensure correct SELinux label: `container_file_t` for all secrets and init-db contents
+3. run `docker compose up`
 
 
 ## Project TODO:
 - [ ] Input verification
   - [x] Check if email exists
   - [ ] Validation E-mail
-- [ ] Database setup
-  - [ ] Allow Password rotation
+- [x] Database setup
+- [ ] Allow Password rotation
 - [ ] mailbot
 - [ ] Webserver setup
-- [ ] Better Error Handling
+- [x] Better Error-handling
 - [ ] Extenting tests (for lib crate)
 - [ ] Extending Project Docs/Comments
+- [ ] Copy only needed files into Build Containers in `Dockerfile`
