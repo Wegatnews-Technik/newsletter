@@ -4,7 +4,7 @@ until pg_isready; do
     sleep 1
 done
 
-if psql ${DB_NAME} -c '\q' 2>&1; then
+if [[ -z `psql -Atqc '\list newsletter' postgres` ]]; then
     exit 0
 fi
 

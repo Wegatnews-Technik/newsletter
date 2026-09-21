@@ -26,8 +26,9 @@ After all these steps were successfull, the address is written to the DB
     - mailbot.rs     # Automatically sends E-Mails to subscribed Inboxes
   - lib.rs       # Shared functionality between subscriber and mailbot(Input Validatio lays here)
 - init-db  # Database config
-  - init.sql # Creates the needed table
-  - users.sh # Creates Postgres users with minimal permissions
+  - 1-init.sql # Creates the needed table
+  - 2-users.sh # Creates Postgres users with minimal permissions
+  - 3-update-users.sh # Updates User Passwords, in case they changes
 - Cargo.toml # Rust project config
 - Cargo.lock # Dependecy lockfile
 - compose.yaml # configures all needed Containers
