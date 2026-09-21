@@ -59,4 +59,3 @@ You can do that by typing `openssl rand -hex 32 > *filename*`
 - [x] Better Error-handling
 - [ ] Extenting tests (for lib crate)
 - [ ] Extending Project Docs/Comments
-- [ ] Copy only needed files into Build Containers in `Dockerfile`
