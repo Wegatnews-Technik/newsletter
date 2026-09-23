@@ -20,8 +20,14 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t read from DB")?;
 
     for row in rows {
-        let email: String = row.try_get("emails").context("Invalid DB scheme")?;
-        let email = newsletter::parse(email).await?;
+        let email: String = row.try_get("address").context("Invalid DB scheme")?;
+        let email = match newsletter::parse(email).await {
+            Ok(email) => email,
+            Err(e) => {
+                println!("{}", e);
+                continue;
+            }
+        };
     }
 
     Ok(())
