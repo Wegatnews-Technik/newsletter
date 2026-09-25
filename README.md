@@ -56,6 +56,7 @@ You can do that by typing `openssl rand -hex 32 > *filename*`
 - [x] Allow Password rotation
 - [ ] mailbot
 - [ ] Webserver setup
+- [ ] Nur einzelne Tags abonnieren
 - [x] Better Error-handling
 - [ ] Extenting tests (for lib crate)
 - [ ] Extending Project Docs/Comments
