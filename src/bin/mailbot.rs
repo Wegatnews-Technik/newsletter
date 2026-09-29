@@ -21,8 +21,9 @@ async fn main() -> anyhow::Result<()> {
         fs::read_to_string("/run/secrets/email-config").context("Can't read email config")?;
     let (sender_email, email_password) = parse_email_secret(&email_secret_file_content)?;
     let creds = Credentials::new(sender_email.clone(), email_password);
-    let mailer = SmtpTransport::relay("smtp.gmail.com")?
-        .credentials(creds.clone())
+    let mailer = SmtpTransport::starttls_relay("smtp.office365.com")?
+        .credentials(creds)
+        .port(587)
         .build();
 
     let db_password =
@@ -38,8 +39,8 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t read from DB")?;
 
     for row in rows {
-        let sender_email: String = row.try_get("address").context("Invalid DB scheme")?;
-        let sender_email = match newsletter::parse(sender_email).await {
+        let dest_email: String = row.try_get("address").context("Invalid DB scheme")?;
+        let dest_email = match newsletter::parse(dest_email).await {
             Ok(email) => email,
             Err(e) => {
                 eprintln!("{}", e);
@@ -51,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
                 Some("Wegatnews".to_owned()),
                 sender_email.parse()?,
             ))
-            .to(Mailbox::new(None, sender_email.parse()?))
+            .to(Mailbox::new(None, dest_email.parse()?))
             .subject("Neuer Artikel")
             .header(ContentType::TEXT_PLAIN)
             .body(email_content.clone())?;
