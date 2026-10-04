@@ -54,7 +54,7 @@ You can do that by typing `openssl rand -hex 32 > *filename*`
   - [ ] Validation E-mail
 - [x] Database setup
 - [x] Allow Password rotation
-- [ ] mailbot
+- [x] mailbot
 - [ ] Webserver setup
 - [ ] Nur einzelne Tags abonnieren
 - [x] Better Error-handling
