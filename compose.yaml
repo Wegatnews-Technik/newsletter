@@ -20,6 +20,8 @@ services:
       context: ./
       dockerfile: ./docker/subscriber/Dockerfile
     container_name: subscriber
+    tty: true
+    stdin_open: true
     depends_on:
       - db
     secrets:
