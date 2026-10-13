@@ -2,6 +2,7 @@ use anyhow::{Context, Ok};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use std::{fs, io};
 use tracing::Level;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,7 +37,9 @@ async fn write_input_to_db(sql_connection: &Pool<Postgres>) -> anyhow::Result<bo
         return Ok(false);
     }
     input = newsletter::parse(input).await?;
-    sqlx::query("INSERT INTO emails VALUES ($1)")
+    let uuid = sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le());
+    sqlx::query("INSERT INTO emails VALUES ($1, $2)")
+        .bind(uuid)
         .bind(&input)
         .execute(sql_connection)
         .await?;

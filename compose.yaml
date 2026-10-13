@@ -20,7 +20,7 @@ services:
       context: ./
       dockerfile: ./docker/subscriber/Dockerfile
     container_name: subscriber
-    tty: true
+    tty: true     # Just for Debugging, remove before porduction
     stdin_open: true
     depends_on:
       - db

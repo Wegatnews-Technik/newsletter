@@ -1,3 +1,4 @@
 CREATE TABLE emails (
-    address VARCHAR(255) PRIMARY KEY UNIQUE NOT NULL
+    uuid uuid PRIMARY KEY NOT NULL,
+    address VARCHAR(255) UNIQUE NOT NULL
 );
