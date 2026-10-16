@@ -1,8 +1,20 @@
-use anyhow::{Context, Ok};
-use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
-use std::{fs, io};
+use anyhow::Context;
+use axum::{
+    Router,
+    extract::{Form, State},
+    response::Html,
+    routing::post,
+};
+use newsletter::SubscribedEmail;
+use reqwest::StatusCode;
+use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::{fs, sync::Arc};
 use tracing::Level;
 use uuid::Uuid;
+
+struct AppState {
+    db: PgPool,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -11,38 +23,64 @@ async fn main() -> anyhow::Result<()> {
     let db_password =
         fs::read_to_string("/run/secrets/pg-subscriber").context("Error reading DB secret")?;
 
-    let pool = PgPoolOptions::new()
+    let db = PgPoolOptions::new()
         .max_connections(5)
         .connect(&("postgres://subscriber:".to_owned() + &db_password[..] + "@db/newsletter"))
         .await
         .context("Can’t connect to database")?;
     tracing::event!(Level::INFO, "established DB connection");
 
-    loop {
-        match write_input_to_db(&pool).await {
-            anyhow::Result::Ok(false) => {
-                tracing::event!(Level::INFO, "finished handling inputs");
-                return Ok(());
-            }
-            anyhow::Result::Ok(true) => (),
-            Err(e) => tracing::event!(Level::WARN, "error accepting subscription [{e}]"),
-        }
-    }
+    let state = Arc::new(AppState { db });
+    let app = Router::new()
+        .route("/subscribe", post(handle_subscribe))
+        .with_state(state);
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }
 
-async fn write_input_to_db(sql_connection: &Pool<Postgres>) -> anyhow::Result<bool> {
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("Input Error"); // TODO: RISK OF PANIC
-    if input.trim() == "" {
-        return Ok(false);
+async fn handle_subscribe(
+    state: State<Arc<AppState>>,
+    Form(params): Form<SubscribedEmail>,
+) -> (StatusCode, Html<String>) {
+    let Some(email) = params.email else {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Html("Es wurde keine E-Mailadresse angegeben".to_string()),
+        );
+    };
+    if email.trim() == "" {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Html("Es wurde keine E-Mailadresse angegeben".to_string()),
+        );
     }
-    input = newsletter::parse(input).await?;
+    let email = match newsletter::parse(email.clone()).await {
+        Ok(value) => value,
+        Err(e) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Html(format!("Es ist ein Fehler aufgetreten: {e}")),
+            );
+        }
+    };
     let uuid = sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le());
-    sqlx::query("INSERT INTO emails VALUES ($1, $2)")
+    match sqlx::query("INSERT INTO emails VALUES ($1, $2)")
         .bind(uuid)
-        .bind(&input)
-        .execute(sql_connection)
-        .await?;
-    tracing::event!(Level::INFO, "add email: {input} to newsletter");
-    Ok(true)
+        .bind(&email)
+        .execute(&state.db)
+        .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Html(format!("Es ist ein Fehler aufgetreten: {e}")),
+            );
+        }
+    }
+    tracing::event!(Level::INFO, "add email: {email} to newsletter");
+
+    (StatusCode::OK, Html("Success".to_string()))
 }

@@ -1,5 +1,15 @@
 use check_if_email_exists::{self, CheckEmailInputBuilder, Reachable};
+use serde::Deserialize;
 use thiserror::Error;
+use uuid::Uuid;
+
+#[derive(Deserialize)]
+pub struct SubscribedEmail {
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
+}
 
 #[derive(Error, Debug)]
 pub enum EmailValidationError {
