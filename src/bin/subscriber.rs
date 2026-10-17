@@ -42,22 +42,10 @@ async fn main() -> anyhow::Result<()> {
 
 async fn handle_subscribe(
     state: State<Arc<AppState>>,
-    Form(params): Form<SubscribedEmail>,
+    Form(mut params): Form<SubscribedEmail>,
 ) -> (StatusCode, Html<String>) {
-    let Some(email) = params.email else {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Html("Es wurde keine E-Mailadresse angegeben".to_string()),
-        );
-    };
-    if email.trim() == "" {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Html("Es wurde keine E-Mailadresse angegeben".to_string()),
-        );
-    }
-    let email = match newsletter::parse(email.clone()).await {
-        Ok(value) => value,
+    match params.validate().await {
+        Ok(()) => (),
         Err(e) => {
             return (
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -65,10 +53,10 @@ async fn handle_subscribe(
             );
         }
     };
-    let uuid = sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le());
+    params.uuid = Some(sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le()));
     match sqlx::query("INSERT INTO emails VALUES ($1, $2)")
-        .bind(uuid)
-        .bind(&email)
+        .bind(params.uuid)
+        .bind(&params.address)
         .execute(&state.db)
         .await
     {
@@ -80,7 +68,14 @@ async fn handle_subscribe(
             );
         }
     }
-    tracing::event!(Level::INFO, "add email: {email} to newsletter");
-
+    if let Some(email) = params.address {
+        tracing::event!(Level::INFO, "add email: {email} to newsletter");
+    } else {
+        tracing::event!(
+            Level::ERROR,
+            "add NULL to Database. UUID: {:?}",
+            params.uuid
+        )
+    }
     (StatusCode::OK, Html("Success".to_string()))
 }

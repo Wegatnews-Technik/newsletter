@@ -1,8 +1,10 @@
 use anyhow::Context;
+use newsletter::SubscribedEmail;
 use rss::Channel;
-use sqlx::{Row, postgres::PgPoolOptions};
+use sqlx::postgres::PgPoolOptions;
 use std::fs;
 use tokio::{self, io};
+use tracing::Level;
 
 use lettre::message::{Mailbox, header::ContentType};
 use lettre::transport::smtp::authentication::Credentials;
@@ -10,6 +12,8 @@ use lettre::{Message, SmtpTransport, Transport};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+
     let rss_content = reqwest::get("https://wegatnews.de/feed.xml")
         .await?
         .bytes()
@@ -33,19 +37,21 @@ async fn main() -> anyhow::Result<()> {
         .connect(&("postgres://mailbot:".to_owned() + &db_password + "@db/newsletter"))
         .await
         .context("Can’t connect to database")?;
-    let rows = sqlx::query("SELECT * FROM emails LIMIT 100;")
+    let rows: Vec<SubscribedEmail> = sqlx::query_as("SELECT * FROM emails LIMIT 100;")
         .fetch_all(&pool)
         .await
         .context("Can’t read from DB")?;
 
-    for row in rows {
-        let dest_email: String = row.try_get("address").context("Invalid DB scheme")?;
-        let dest_email = match newsletter::parse(dest_email).await {
-            Ok(email) => email,
+    for mut row in rows {
+        let Some(dest_email) = (match row.validate().await {
+            Ok(()) => row.address,
             Err(e) => {
-                eprintln!("{}", e);
+                tracing::event!(Level::WARN, ?row.uuid, "Could not send email: {e}");
                 continue;
             }
+        }) else {
+            tracing::event!(Level::ERROR, ?row.uuid, "destination_email is None");
+            continue;
         };
         let email_to_send = Message::builder()
             .from(Mailbox::new(
