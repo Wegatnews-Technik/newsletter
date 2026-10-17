@@ -1,5 +1,7 @@
 use check_if_email_exists::{self, CheckEmailInputBuilder, Reachable};
+use serde::Deserialize;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum EmailValidationError {
@@ -23,115 +25,138 @@ pub enum EmailValidationError {
     Unknown(String),
 }
 
-/// Checks if an E-Mail address is valid or not:
-/// true -> valid false -> invalid
-/// **This takes ownership over email**
-/// # Checked properties
-/// - email is not longer than 254 chars
-/// - contains exactly one local part and one domain part
-/// - both parts are non-empty, domain is at least 3 chars long
-/// - only contains the following characters:
-///     - 'a'..='z' | '0'..='9' | '-' | '.' | '_' | 'ä' | 'ö' | 'ü' | 'ß'
-/// - No trailing underscores, dots and hyphens
-/// - No consecutive dots
-/// - Check that E-Mail exists and is not a disposable address(via crate `check-if-email-exists`)
-/// # Panic
-/// Panics if email.chars() has more than usize::MAX elements
-pub async fn parse(mut email: String) -> Result<String, EmailValidationError> {
-    check_email_syntax(&mut email)?;
-    email_exists(&email).await?;
-    Ok(email)
+#[derive(Deserialize, sqlx::FromRow)]
+pub struct SubscribedEmail {
+    #[serde(default)]
+    pub address: Option<String>,
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
 }
 
-fn check_email_syntax(email: &mut String) -> Result<(), EmailValidationError> {
-    if email.chars().count() >= 254 {
-        return Err(EmailValidationError::ToLong);
-    }
-    let email_parts: Vec<&str> = email.split("@").collect();
-
-    // Index without Panic
-    let (Some(user), Some(domain)) = (email_parts.first(), email_parts.get(1)) else {
-        return Err(EmailValidationError::ToShort);
-    };
-
-    if email_parts.len() != 2 {
-        return Err(EmailValidationError::MultipleAt);
-    }
-    if user.chars().count() > 64 || domain.chars().count() > 255 {
-        return Err(EmailValidationError::ToLong);
-    }
-    if user.chars().count() == 0 || domain.chars().count() < 3 {
-        return Err(EmailValidationError::ToShort);
-    }
-
-    if !allowed_chars(user.trim()) || !allowed_chars(domain.trim()) {
-        return Err(EmailValidationError::InvalidCharacter);
-    }
-
-    if !domain.contains(".") {
-        return Err(EmailValidationError::DomainMissingDot);
+impl SubscribedEmail {
+    /// Checks if an E-Mail address is valid or not:
+    /// true -> valid false -> invalid
+    /// **This takes ownership over email**
+    /// # Checked properties
+    /// - email is not longer than 254 chars
+    /// - contains exactly one local part and one domain part
+    /// - both parts are non-empty, domain is at least 3 chars long
+    /// - only contains the following characters:
+    ///     - 'a'..='z' | '0'..='9' | '-' | '.' | '_' | 'ä' | 'ö' | 'ü' | 'ß'
+    /// - No trailing underscores, dots and hyphens
+    /// - No consecutive dots
+    /// - Check that E-Mail exists and is not a disposable address(via crate `check-if-email-exists`)
+    /// # Panic
+    /// Panics if email.chars() has more than usize::MAX elements
+    pub async fn validate(&mut self) -> Result<(), EmailValidationError> {
+        self.check_email_syntax()?;
+        let Some(email) = self.address.clone() else {
+            return Err(EmailValidationError::ToShort);
+        };
+        Self::email_exists(&email).await?;
+        Ok(())
     }
 
-    *email = user.trim().to_string() + "@" + domain.trim();
-    Ok(())
-}
+    fn check_email_syntax(&mut self) -> Result<(), EmailValidationError> {
+        let Some(email) = &self.address else {
+            return Err(EmailValidationError::ToShort);
+        };
+        if email.chars().count() >= 254 {
+            self.address = None;
+            return Err(EmailValidationError::ToLong);
+        }
+        let email_parts: Vec<&str> = email.split("@").collect();
 
-fn allowed_chars(string: &str) -> bool {
-    if !string
-        .trim()
-        .chars()
-        .all(|x| matches!(x, 'a'..='z' | '0'..='9' | '-' | '.' | '_' | 'ä' | 'ö' | 'ü' | 'ß'))
-    {
-        return false;
+        // Index without Panic
+        let (Some(user), Some(domain)) = (email_parts.first(), email_parts.get(1)) else {
+            self.address = None;
+            return Err(EmailValidationError::ToShort);
+        };
+
+        if email_parts.len() != 2 {
+            self.address = None;
+            return Err(EmailValidationError::MultipleAt);
+        }
+        if user.chars().count() > 64 || domain.chars().count() > 255 {
+            self.address = None;
+            return Err(EmailValidationError::ToLong);
+        }
+        if user.chars().count() == 0 || domain.chars().count() < 3 {
+            self.address = None;
+            return Err(EmailValidationError::ToShort);
+        }
+
+        if !Self::allowed_chars(user.trim()) || !Self::allowed_chars(domain.trim()) {
+            self.address = None;
+            return Err(EmailValidationError::InvalidCharacter);
+        }
+
+        if !domain.contains(".") {
+            self.address = None;
+            return Err(EmailValidationError::DomainMissingDot);
+        }
+
+        self.address = Some(user.trim().to_string() + "@" + domain.trim());
+        Ok(())
     }
 
-    // Consecutive dots
-    let mut dot = false;
-    for char in string.chars() {
-        if char == '.' {
-            if dot {
-                return false;
+    fn allowed_chars(string: &str) -> bool {
+        if !string
+            .trim()
+            .chars()
+            .all(|x| matches!(x, 'a'..='z' | '0'..='9' | '-' | '.' | '_' | 'ä' | 'ö' | 'ü' | 'ß'))
+        {
+            return false;
+        }
+
+        // Consecutive dots
+        let mut dot = false;
+        for char in string.chars() {
+            if char == '.' {
+                if dot {
+                    return false;
+                }
+                dot = true;
+            } else {
+                dot = false;
             }
-            dot = true;
+        }
+
+        // Check for trailing special characters
+        if let (Some(first), Some(last)) = (string.chars().next(), string.chars().next_back()) {
+            !matches!(first, '-' | '.' | '_') && !matches!(last, '-' | '.' | '_')
         } else {
-            dot = false;
+            false
         }
     }
 
-    // Check for trailing special characters
-    if let (Some(first), Some(last)) = (string.chars().next(), string.chars().next_back()) {
-        !matches!(first, '-' | '.' | '_') && !matches!(last, '-' | '.' | '_')
-    } else {
-        false
-    }
-}
+    async fn email_exists(email: &str) -> Result<(), EmailValidationError> {
+        let input = match CheckEmailInputBuilder::default()
+            .to_email(email.to_string())
+            .build()
+        {
+            Ok(input) => input,
+            Err(e) => return Err(EmailValidationError::Unknown(format!("{:?}", e))),
+        };
 
-async fn email_exists(email: &str) -> Result<(), EmailValidationError> {
-    let input = match CheckEmailInputBuilder::default()
-        .to_email(email.to_string())
-        .build()
-    {
-        Ok(input) => input,
-        Err(e) => return Err(EmailValidationError::Unknown(format!("{:?}", e))),
-    };
+        let result = check_if_email_exists::check_email(&input).await;
 
-    let result = check_if_email_exists::check_email(&input).await;
-
-    match result.is_reachable {
-        Reachable::Safe => Ok(()),
-        Reachable::Risky => Err(EmailValidationError::EmailRisky),
-        Reachable::Invalid => Err(EmailValidationError::EmailInvalid),
-        Reachable::Unknown => {
-            if let Err(e) = result.mx {
-                Err(EmailValidationError::Unknown(e.to_string()))
-            } else if let Err(e) = result.smtp {
-                Err(EmailValidationError::Unknown(e.to_string()))
-            } else if let Err(e) = result.misc {
-                Err(EmailValidationError::Unknown(e.to_string()))
-            } else {
-                Err(EmailValidationError::Unknown(String::from(
-                    "Unknown problem",
-                )))
+        match result.is_reachable {
+            Reachable::Safe => Ok(()),
+            Reachable::Risky => Err(EmailValidationError::EmailRisky),
+            Reachable::Invalid => Err(EmailValidationError::EmailInvalid),
+            Reachable::Unknown => {
+                if let Err(e) = result.mx {
+                    Err(EmailValidationError::Unknown(e.to_string()))
+                } else if let Err(e) = result.smtp {
+                    Err(EmailValidationError::Unknown(e.to_string()))
+                } else if let Err(e) = result.misc {
+                    Err(EmailValidationError::Unknown(e.to_string()))
+                } else {
+                    Err(EmailValidationError::Unknown(String::from(
+                        "Unknown problem",
+                    )))
+                }
             }
         }
     }
@@ -141,7 +166,7 @@ async fn email_exists(email: &str) -> Result<(), EmailValidationError> {
 mod tests {
     use std::assert_matches;
 
-    use crate::check_email_syntax;
+    use crate::SubscribedEmail;
 
     #[test]
     fn test_check_email_syntax() {
@@ -165,16 +190,24 @@ mod tests {
             "admin'--g@example.com".to_string(),
         ];
 
-        for mut mail in valid_emails {
+        for mail in valid_emails {
+            let mut subscribed_email = SubscribedEmail {
+                address: Some(mail.clone()),
+                uuid: None,
+            };
             assert_matches!(
-                check_email_syntax(&mut mail),
+                subscribed_email.check_email_syntax(),
                 Ok(_),
                 "{mail} should be valid"
             );
         }
-        for mut mail in invalid_emails {
+        for mail in invalid_emails {
+            let mut subscribed_email = SubscribedEmail {
+                address: Some(mail.clone()),
+                uuid: None,
+            };
             assert_matches!(
-                check_email_syntax(&mut mail),
+                subscribed_email.check_email_syntax(),
                 Err(_),
                 "{mail} should be invalid"
             )
