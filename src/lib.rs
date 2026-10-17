@@ -53,7 +53,7 @@ impl SubscribedEmail {
         let Some(email) = self.address.clone() else {
             return Err(EmailValidationError::ToShort);
         };
-        Self::email_exists(&email).await?;
+        // Self::email_exists(&email).await?;
         Ok(())
     }
 

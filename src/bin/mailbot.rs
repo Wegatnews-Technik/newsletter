@@ -10,6 +10,8 @@ use lettre::message::{Mailbox, header::ContentType};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
+const HOSTNAME: &'static str = "http://localhost:8080";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -53,6 +55,11 @@ async fn main() -> anyhow::Result<()> {
             tracing::event!(Level::ERROR, ?row.uuid, "destination_email is None");
             continue;
         };
+        let unsubscribe_link = format!(
+            r#"Zum deabonnieren diesen Link klicken: <a href="{HOSTNAME}/unsubscribe?uuid={}">{HOSTNAME}/unsubscribe?uuid={}<a>"#,
+            row.uuid.unwrap(),
+            row.uuid.unwrap()
+        );
         let email_to_send = Message::builder()
             .from(Mailbox::new(
                 Some("Wegatnews".to_owned()),
@@ -60,8 +67,8 @@ async fn main() -> anyhow::Result<()> {
             ))
             .to(Mailbox::new(None, dest_email.parse()?))
             .subject("Neuer Artikel")
-            .header(ContentType::TEXT_PLAIN)
-            .body(email_content.clone())?;
+            .header(ContentType::TEXT_HTML)
+            .body(email_content.clone() + &unsubscribe_link)?;
         mailer.send(&email_to_send)?;
     }
 
