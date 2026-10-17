@@ -5,7 +5,7 @@ mailbot_pw=$( cat /run/secrets/pg-mailbot )
 
 psql -v ON_ERROR_STOP --username "$POSTGRES_USER" --dbname $POSTGRES_DB <<-EOSQL
     CREATE USER subscriber WITH PASSWORD '$subscriber_pw';
-    GRANT INSERT ON emails TO subscriber;
+    GRANT SELECT, INSERT, DELETE ON emails TO subscriber;
 EOSQL
 
 psql -v ON_ERROR_STOP --username "$POSTGRES_USER" --dbname $POSTGRES_DB <<-EOSQL

@@ -1,9 +1,9 @@
 use anyhow::Context;
 use axum::{
     Router,
-    extract::{Form, State},
+    extract::{Form, Query, State},
     response::Html,
-    routing::post,
+    routing::{get, post},
 };
 use newsletter::SubscribedEmail;
 use reqwest::StatusCode;
@@ -33,6 +33,7 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState { db });
     let app = Router::new()
         .route("/subscribe", post(handle_subscribe))
+        .route("/unsubscribe", get(handle_unsubscribe))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
     axum::serve(listener, app).await?;
@@ -78,4 +79,29 @@ async fn handle_subscribe(
         )
     }
     (StatusCode::OK, Html("Success".to_string()))
+}
+
+async fn handle_unsubscribe(
+    state: State<Arc<AppState>>,
+    to_delete: Query<SubscribedEmail>,
+) -> (StatusCode, Html<String>) {
+    match sqlx::query_as::<_, SubscribedEmail>(
+        "DELETE FROM emails WHERE uuid=$1 RETURNING uuid, address",
+    )
+    .bind(to_delete.uuid)
+    .fetch_one(&state.db)
+    .await
+    {
+        Ok(subscriber) => {
+            tracing::event!(Level::INFO, "deleted email: {:?}", subscriber.address);
+            (
+                StatusCode::OK,
+                Html("Succesfully deleted E-Mail".to_string()),
+            )
+        }
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Html(format!("Es ist ein Fehler aufgetreten: {e}")),
+        ),
+    }
 }
