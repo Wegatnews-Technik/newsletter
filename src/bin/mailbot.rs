@@ -10,7 +10,7 @@ use lettre::message::{Mailbox, header::ContentType};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-const HOSTNAME: &'static str = "http://localhost:8080";
+const HOSTNAME: &str = "http://localhost:8080";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -93,8 +93,7 @@ fn build_email_body(channel: Channel) -> String {
 fn parse_email_secret(input: &str) -> Result<(String, String), io::Error> {
     let email_config: Vec<&str> = input.split("\n").collect();
     let (Some(account), Some(password)) = (email_config.first(), email_config.get(1)) else {
-        return Err(io::Error::new(
-            std::io::ErrorKind::Other,
+        return Err(io::Error::other(
             "Email account config is malformed",
         ));
     };
