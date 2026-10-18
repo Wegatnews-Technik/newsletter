@@ -10,11 +10,11 @@ use lettre::message::{Mailbox, header::ContentType};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-const HOSTNAME: &str = "http://localhost:8080";
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
+
+    let config = newsletter::Config::read();
 
     let rss_content = reqwest::get("https://wegatnews.de/feed.xml")
         .await?
@@ -55,10 +55,10 @@ async fn main() -> anyhow::Result<()> {
             tracing::event!(Level::ERROR, ?row.uuid, "destination_email is None");
             continue;
         };
-        let unsubscribe_link = format!(
-            r#"Zum deabonnieren diesen Link klicken: <a href="{HOSTNAME}/unsubscribe?uuid={}">{HOSTNAME}/unsubscribe?uuid={}<a>"#,
-            row.uuid.unwrap(),
-            row.uuid.unwrap()
+        let unsubscribe_link =
+            format!("{}/unsubscribe?uuid={}", config.base_url, row.uuid.unwrap());
+        let link_element = format!(
+            r#"Zum deabonnieren diesen Link klicken: <a href="{unsubscribe_link}">{unsubscribe_link}<a>"#,
         );
         let email_to_send = Message::builder()
             .from(Mailbox::new(
@@ -68,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
             .to(Mailbox::new(None, dest_email.parse()?))
             .subject("Neuer Artikel")
             .header(ContentType::TEXT_HTML)
-            .body(email_content.clone() + &unsubscribe_link)?;
+            .body(email_content.clone() + &link_element)?;
         mailer.send(&email_to_send)?;
     }
 
@@ -93,9 +93,7 @@ fn build_email_body(channel: Channel) -> String {
 fn parse_email_secret(input: &str) -> Result<(String, String), io::Error> {
     let email_config: Vec<&str> = input.split("\n").collect();
     let (Some(account), Some(password)) = (email_config.first(), email_config.get(1)) else {
-        return Err(io::Error::other(
-            "Email account config is malformed",
-        ));
+        return Err(io::Error::other("Email account config is malformed"));
     };
     Ok((account.trim().to_string(), password.trim().to_string()))
 }

@@ -1,7 +1,25 @@
 use check_if_email_exists::{self, CheckEmailInputBuilder, Reachable};
 use serde::Deserialize;
+use std::env;
 use thiserror::Error;
+use tracing::Level;
 use uuid::Uuid;
+
+pub struct Config {
+    pub base_url: String,
+}
+impl Config {
+    pub fn read() -> Config {
+        let base_url = match env::var("BASE_URL") {
+            Ok(var) => var,
+            Err(_) => {
+                tracing::event!(Level::ERROR, "Could not read environment variable");
+                String::new()
+            }
+        };
+        Config { base_url }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum EmailValidationError {

@@ -33,6 +33,7 @@ services:
     container_name: mailbot
     depends_on:
       - db
+    env_file: ".env"
     secrets:
       - pg-mailbot
       - email-config
