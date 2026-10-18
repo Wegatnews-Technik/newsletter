@@ -5,7 +5,7 @@ use axum::{
     response::Html,
     routing::{get, post},
 };
-use newsletter::SubscribedEmail;
+use newsletter::{Config, SubscribedEmail};
 use reqwest::StatusCode;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::{fs, sync::Arc};
@@ -14,11 +14,14 @@ use uuid::Uuid;
 
 struct AppState {
     db: PgPool,
+    config: Config,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
+
+    let config = Config::read();
 
     let db_password =
         fs::read_to_string("/run/secrets/pg-subscriber").context("Error reading DB secret")?;
@@ -30,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t connect to database")?;
     tracing::event!(Level::INFO, "established DB connection");
 
-    let state = Arc::new(AppState { db });
+    let state = Arc::new(AppState { db, config });
     let app = Router::new()
         .route("/subscribe", post(handle_subscribe))
         .route("/unsubscribe", get(handle_unsubscribe))
@@ -45,7 +48,7 @@ async fn handle_subscribe(
     state: State<Arc<AppState>>,
     Form(mut params): Form<SubscribedEmail>,
 ) -> (StatusCode, Html<String>) {
-    match params.validate().await {
+    match params.validate(&state.config).await {
         Ok(()) => (),
         Err(e) => {
             return (

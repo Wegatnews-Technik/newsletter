@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 pub struct Config {
     pub base_url: String,
+    pub check_email_exists: bool,
 }
 impl Config {
     pub fn read() -> Config {
@@ -17,7 +18,10 @@ impl Config {
                 String::new()
             }
         };
-        Config { base_url }
+        Config {
+            base_url,
+            check_email_exists: env::var("CHECK_EMAIL_EXISTS").is_ok(),
+        }
     }
 }
 
@@ -66,12 +70,14 @@ impl SubscribedEmail {
     /// - Check that E-Mail exists and is not a disposable address(via crate `check-if-email-exists`)
     /// # Panic
     /// Panics if email.chars() has more than usize::MAX elements
-    pub async fn validate(&mut self) -> Result<(), EmailValidationError> {
+    pub async fn validate(&mut self, config: &Config) -> Result<(), EmailValidationError> {
         self.check_email_syntax()?;
-        let Some(email) = self.address.clone() else {
-            return Err(EmailValidationError::ToShort);
-        };
-        Self::email_exists(&email).await?;
+        if config.check_email_exists {
+            let Some(email) = self.address.clone() else {
+                return Err(EmailValidationError::ToShort);
+            };
+            Self::email_exists(&email).await?;
+        }
         Ok(())
     }
 

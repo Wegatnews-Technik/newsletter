@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t read from DB")?;
 
     for mut row in rows {
-        let Some(dest_email) = (match row.validate().await {
+        let Some(dest_email) = (match row.validate(&config).await {
             Ok(()) => row.address,
             Err(e) => {
                 tracing::event!(Level::WARN, ?row.uuid, "Could not send email: {e}");
