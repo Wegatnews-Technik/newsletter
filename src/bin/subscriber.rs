@@ -1,11 +1,12 @@
 use anyhow::Context;
+use askama::Template;
+use askama_web::WebTemplate;
 use axum::{
     Router,
     extract::{Form, Query, State},
-    response::Html,
     routing::{get, post},
 };
-use newsletter::{Config, SubscribedEmail};
+use newsletter::{Config, EmailValidationError, SubscribedEmail};
 use reqwest::StatusCode;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::{fs, sync::Arc};
@@ -15,6 +16,21 @@ use uuid::Uuid;
 struct AppState {
     db: PgPool,
     config: Config,
+}
+
+#[derive(Template, WebTemplate)]
+#[template(path = "subscribe.html")]
+enum SubscribeTemplate {
+    Success,
+    ValidationError(EmailValidationError),
+    DBError(sqlx::Error),
+}
+
+#[derive(Template, WebTemplate)]
+#[template(path = "unsubscribe.html")]
+enum UnsubscribeTemplate {
+    Success,
+    DBError(sqlx::Error),
 }
 
 #[tokio::main]
@@ -47,13 +63,13 @@ async fn main() -> anyhow::Result<()> {
 async fn handle_subscribe(
     state: State<Arc<AppState>>,
     Form(mut params): Form<SubscribedEmail>,
-) -> (StatusCode, Html<String>) {
+) -> (StatusCode, SubscribeTemplate) {
     match params.validate(&state.config).await {
         Ok(()) => (),
         Err(e) => {
             return (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                Html(format!("Es ist ein Fehler aufgetreten: {e}")),
+                SubscribeTemplate::ValidationError(e),
             );
         }
     };
@@ -68,7 +84,7 @@ async fn handle_subscribe(
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Html(format!("Es ist ein Fehler aufgetreten: {e}")),
+                SubscribeTemplate::DBError(e),
             );
         }
     }
@@ -81,13 +97,13 @@ async fn handle_subscribe(
             params.uuid
         )
     }
-    (StatusCode::OK, Html("Success".to_string()))
+    (StatusCode::OK, SubscribeTemplate::Success)
 }
 
 async fn handle_unsubscribe(
     state: State<Arc<AppState>>,
     to_delete: Query<SubscribedEmail>,
-) -> (StatusCode, Html<String>) {
+) -> (StatusCode, UnsubscribeTemplate) {
     match sqlx::query_as::<_, SubscribedEmail>(
         "DELETE FROM emails WHERE uuid=$1 RETURNING uuid, address",
     )
@@ -97,14 +113,8 @@ async fn handle_unsubscribe(
     {
         Ok(subscriber) => {
             tracing::event!(Level::INFO, "deleted email: {:?}", subscriber.address);
-            (
-                StatusCode::OK,
-                Html("Succesfully deleted E-Mail".to_string()),
-            )
+            (StatusCode::OK, UnsubscribeTemplate::Success)
         }
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Html(format!("Es ist ein Fehler aufgetreten: {e}")),
-        ),
+        Err(e) => (StatusCode::BAD_REQUEST, UnsubscribeTemplate::DBError(e)),
     }
 }

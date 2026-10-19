@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Newsletter abonnieren</title>
+    </head>
+    <body>
+        {%- match self -%}
+            {%- when Self::Success -%}
+                Die E-Mail wurde erfolgreich hinzugefügt
+            {%- when Self::ValidationError(e) -%}
+                Fehler: {{e}}
+            {%- when Self::DBError(e) -%}
+                Fehler: {{e}}
+        {%- endmatch -%}
+    </body>
+</html>
