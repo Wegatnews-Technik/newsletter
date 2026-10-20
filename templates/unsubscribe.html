@@ -10,7 +10,13 @@
             {%- when Self::Success -%}
                 Die E-Mail wurde erfolgreich gelöscht
             {%- when Self::DBError(e) -%}
-                Fehler: {{e}}
+                {%- match e -%}
+                    {%- when sqlx::Error::RowNotFound -%}
+                        Diese ID stimmt mit keiner abonnierten E-Mail überein
+                    {%- when other -%}
+                        {{  self.trace_error(other) }}
+                        Unbekannter Fehler
+                {%- endmatch -%}
         {%- endmatch -%}
     </body>
 </html>

@@ -10,9 +10,34 @@
             {%- when Self::Success -%}
                 Die E-Mail wurde erfolgreich hinzugefügt
             {%- when Self::ValidationError(e) -%}
-                Fehler: {{e}}
+                {%- match e -%}
+                    {%- when EmailValidationError::ToLong -%}
+                        Die E-Mail ist zu lang
+                    {%- when EmailValidationError::ToShort -%}
+                        Die E-Mail ist unvollständig
+                    {%- when EmailValidationError::MultipleAt -%}
+                        Die E-Mail enthält mehrere @
+                    {%- when EmailValidationError::DomainMissingDot -%}
+                        Der E-Mailserver ist ungültig
+                    {%- when EmailValidationError::InvalidCharacter -%}
+                        Die E-Mail enthält ungültige Zeichen
+                    {%- when error -%}
+                        {{ error }}
+                {%- endmatch -%}
             {%- when Self::DBError(e) -%}
-                Fehler: {{e}}
+                {%- match e -%}
+                    {%- when sqlx::Error::Database(e) -%}
+                        {%- match e.kind() -%}
+                            {%- when sqlx::error::ErrorKind::UniqueViolation -%}
+                                Diese E-Mail exestiert bereits
+                            {%- when other -%}
+                                {{ self.trace_error_debug_print(other) }}
+                                Unbekannter Fehler
+                        {%- endmatch -%}
+                    {%- when other -%}
+                        {{  self.trace_error(other) }}
+                        Unbekannter Fehler
+                {%- endmatch -%}
         {%- endmatch -%}
     </body>
 </html>

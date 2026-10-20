@@ -18,6 +18,18 @@ struct AppState {
     config: Config,
 }
 
+trait TemplateTracing {
+    fn trace_error<T: std::fmt::Display>(&self, error: T) -> &'static str {
+        tracing::event!(Level::ERROR, "{error}");
+        ""
+    }
+
+    fn trace_error_debug_print<T: std::fmt::Debug>(&self, error: T) -> &'static str {
+        tracing::event!(Level::ERROR, "{:?}", error);
+        ""
+    }
+}
+
 #[derive(Template, WebTemplate)]
 #[template(path = "subscribe.html")]
 enum SubscribeTemplate {
@@ -25,6 +37,7 @@ enum SubscribeTemplate {
     ValidationError(EmailValidationError),
     DBError(sqlx::Error),
 }
+impl TemplateTracing for SubscribeTemplate {}
 
 #[derive(Template, WebTemplate)]
 #[template(path = "unsubscribe.html")]
@@ -32,6 +45,7 @@ enum UnsubscribeTemplate {
     Success,
     DBError(sqlx::Error),
 }
+impl TemplateTracing for UnsubscribeTemplate {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
