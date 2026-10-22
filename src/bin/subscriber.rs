@@ -6,6 +6,7 @@ use axum::{
     extract::{Form, Query, State},
     routing::{get, post},
 };
+use moka::future::Cache;
 use newsletter::{Config, EmailValidationError, SubscribedEmail};
 use reqwest::StatusCode;
 use sqlx::{PgPool, postgres::PgPoolOptions};
@@ -16,6 +17,7 @@ use uuid::Uuid;
 struct AppState {
     db: PgPool,
     config: Config,
+    unverified_emails: Cache<Uuid, String>,
 }
 
 trait TemplateTracing {
@@ -35,9 +37,16 @@ trait TemplateTracing {
 enum SubscribeTemplate {
     Success,
     ValidationError(EmailValidationError),
-    DBError(sqlx::Error),
 }
-impl TemplateTracing for SubscribeTemplate {}
+
+#[derive(Template, WebTemplate)]
+#[template(path = "verify.html")]
+enum VerifyTemplate {
+    Success,
+    DBError(sqlx::Error),
+    InvalidLink,
+}
+impl TemplateTracing for VerifyTemplate {}
 
 #[derive(Template, WebTemplate)]
 #[template(path = "unsubscribe.html")]
@@ -63,9 +72,14 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t connect to database")?;
     tracing::event!(Level::INFO, "established DB connection");
 
-    let state = Arc::new(AppState { db, config });
+    let state = Arc::new(AppState {
+        db,
+        config,
+        unverified_emails: Cache::new(100),
+    });
     let app = Router::new()
         .route("/subscribe", post(handle_subscribe))
+        .route("/verify", get(handle_verify))
         .route("/unsubscribe", get(handle_unsubscribe))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
@@ -87,7 +101,33 @@ async fn handle_subscribe(
             );
         }
     };
-    params.uuid = Some(sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le()));
+    let uuid = sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le());
+    tracing::event!(Level::INFO, "{uuid}");
+
+    state
+        .unverified_emails
+        .insert(uuid, params.address.expect("address was validated before"))
+        .await;
+
+    (StatusCode::OK, SubscribeTemplate::Success)
+}
+
+async fn handle_verify(
+    state: State<Arc<AppState>>,
+    Form(mut params): Form<SubscribedEmail>,
+) -> (StatusCode, VerifyTemplate) {
+    let Some(uuid) = params.uuid else {
+        return (StatusCode::BAD_REQUEST, VerifyTemplate::InvalidLink);
+    };
+    params.address = state.unverified_emails.get(&uuid).await;
+
+    match params.validate(&state.config).await {
+        Ok(()) => (),
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, VerifyTemplate::InvalidLink);
+        }
+    }
+
     match sqlx::query("INSERT INTO emails VALUES ($1, $2)")
         .bind(params.uuid)
         .bind(&params.address)
@@ -98,7 +138,7 @@ async fn handle_subscribe(
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                SubscribeTemplate::DBError(e),
+                VerifyTemplate::DBError(e),
             );
         }
     }
@@ -111,7 +151,7 @@ async fn handle_subscribe(
             params.uuid
         )
     }
-    (StatusCode::OK, SubscribeTemplate::Success)
+    (StatusCode::OK, VerifyTemplate::Success)
 }
 
 async fn handle_unsubscribe(

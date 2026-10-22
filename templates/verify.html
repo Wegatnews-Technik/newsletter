@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>E-Mail-Bestätigung</title>
+</head>
+<body>
+    {%- match self -%}
+        {%- when Self::Success-%}
+            Die E-Mail wurde erfolgreich bestätigt.
+        {%- when Self::InvalidLink -%}
+            Dieser Bestätigungslink ist ungültig. Das kann z.B.: daran liegen, dass er abgelaufen ist.
+        {%- when Self::DBError(e) -%}
+            {%- match e -%}
+                {%- when sqlx::Error::Database(e) -%}
+                    {%- match e.kind() -%}
+                        {%- when sqlx::error::ErrorKind::UniqueViolation -%}
+                            Diese E-Mail exestiert bereits
+                        {%- when other -%}
+                            {{ self.trace_error_debug_print(other) }}
+                            Unbekannter Fehler
+                    {%- endmatch -%}
+                {%- when other -%}
+                    {{  self.trace_error(other) }}
+                    Unbekannter Fehler
+            {%- endmatch -%}
+    {%- endmatch -%}
+</body>
+</html>
