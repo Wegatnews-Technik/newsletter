@@ -190,7 +190,7 @@ impl SubscribedEmail {
 mod tests {
     use std::assert_matches;
 
-    use crate::SubscribedEmail;
+    use crate::{EmailValidationError, SubscribedEmail};
 
     #[test]
     fn test_check_email_syntax() {
@@ -236,5 +236,18 @@ mod tests {
                 "{mail} should be invalid"
             )
         }
+    }
+
+    #[test]
+    fn test_check_email_syntax_none_value() {
+        let mut non_value = SubscribedEmail {
+            uuid: None,
+            address: None,
+        };
+        assert_matches!(
+            non_value.check_email_syntax(),
+            Err(EmailValidationError::ToShort),
+            "address=None has a wrong return"
+        );
     }
 }
