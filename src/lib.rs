@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub struct Config {
     pub base_url: String,
     pub ttl: Duration,
+    pub unverified_limit: u64,
     pub check_email_exists: bool,
 }
 impl Config {
@@ -15,7 +16,7 @@ impl Config {
         let base_url = match env::var("BASE_URL") {
             Ok(var) => var,
             Err(_) => {
-                tracing::event!(Level::ERROR, "Could not read environment variable");
+                tracing::event!(Level::ERROR, "Could not read environment variable BASE_URL");
                 String::new()
             }
         };
@@ -47,10 +48,21 @@ impl Config {
         if ttl == Duration::ZERO {
             ttl = Duration::from_mins(30);
         }
+        let unverified_limit = match env::var("UNVERIFIED_LIMIT") {
+            Ok(limit) => match limit.parse() {
+                Ok(value) => value,
+                _ => {
+                    tracing::event!(Level::ERROR, "invalid configuration for UNVERIFIED_LIMIT");
+                    100
+                }
+            },
+            _ => 100,
+        };
 
         Config {
             base_url,
             ttl,
+            unverified_limit,
             check_email_exists: env::var("CHECK_EMAIL_EXISTS").is_ok(),
         }
     }

@@ -72,7 +72,9 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t connect to database")?;
     tracing::event!(Level::INFO, "established DB connection");
 
-    let unverified_emails = CacheBuilder::new(100).time_to_live(config.ttl).build();
+    let unverified_emails = CacheBuilder::new(config.unverified_limit)
+        .time_to_live(config.ttl)
+        .build();
     let state = Arc::new(AppState {
         db,
         config,
