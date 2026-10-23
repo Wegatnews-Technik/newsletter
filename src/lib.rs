@@ -1,12 +1,13 @@
 use check_if_email_exists::{self, CheckEmailInputBuilder, Reachable};
 use serde::Deserialize;
-use std::env;
+use std::{env, time::Duration};
 use thiserror::Error;
 use tracing::Level;
 use uuid::Uuid;
 
 pub struct Config {
     pub base_url: String,
+    pub ttl: Duration,
     pub check_email_exists: bool,
 }
 impl Config {
@@ -18,8 +19,38 @@ impl Config {
                 String::new()
             }
         };
+        let (hours, minutes) = (
+            env::var("TTL_HOURS").unwrap_or(String::from("0")),
+            env::var("TTL_MINUTES").unwrap_or(String::from("0")),
+        );
+        let hours = match hours.parse() {
+            Ok(hours) => hours,
+            _ => {
+                tracing::event!(
+                    Level::ERROR,
+                    "invalid configuration for email verification TTL hours"
+                );
+                0
+            }
+        };
+        let minutes = match minutes.parse() {
+            Ok(minutes) => minutes,
+            _ => {
+                tracing::event!(
+                    Level::ERROR,
+                    "invalid configuration for email verification TTL minutes"
+                );
+                0
+            }
+        };
+        let mut ttl = Duration::from_hours(hours) + Duration::from_mins(minutes);
+        if ttl == Duration::ZERO {
+            ttl = Duration::from_mins(30);
+        }
+
         Config {
             base_url,
+            ttl,
             check_email_exists: env::var("CHECK_EMAIL_EXISTS").is_ok(),
         }
     }

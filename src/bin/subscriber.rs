@@ -6,11 +6,11 @@ use axum::{
     extract::{Form, Query, State},
     routing::{get, post},
 };
-use moka::future::Cache;
+use moka::future::{Cache, CacheBuilder};
 use newsletter::{Config, EmailValidationError, SubscribedEmail};
 use reqwest::StatusCode;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use std::{fs, sync::Arc};
+use std::{fs, sync::Arc, time::Duration};
 use tracing::Level;
 use uuid::Uuid;
 
@@ -75,7 +75,9 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState {
         db,
         config,
-        unverified_emails: Cache::new(100),
+        unverified_emails: CacheBuilder::new(100)
+            .time_to_live(Duration::from_mins(5))
+            .build(),
     });
     let app = Router::new()
         .route("/subscribe", post(handle_subscribe))
