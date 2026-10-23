@@ -121,7 +121,7 @@ async fn handle_verify(
     let Some(uuid) = params.uuid else {
         return (StatusCode::BAD_REQUEST, VerifyTemplate::InvalidLink);
     };
-    params.address = state.unverified_emails.get(&uuid).await;
+    params.address = state.unverified_emails.remove(&uuid).await;
 
     match params.validate(&state.config).await {
         Ok(()) => (),
