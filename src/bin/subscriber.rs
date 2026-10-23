@@ -10,7 +10,7 @@ use moka::future::{Cache, CacheBuilder};
 use newsletter::{Config, EmailValidationError, SubscribedEmail};
 use reqwest::StatusCode;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use std::{fs, sync::Arc, time::Duration};
+use std::{fs, sync::Arc};
 use tracing::Level;
 use uuid::Uuid;
 
@@ -72,12 +72,11 @@ async fn main() -> anyhow::Result<()> {
         .context("Can’t connect to database")?;
     tracing::event!(Level::INFO, "established DB connection");
 
+    let unverified_emails = CacheBuilder::new(100).time_to_live(config.ttl).build();
     let state = Arc::new(AppState {
         db,
         config,
-        unverified_emails: CacheBuilder::new(100)
-            .time_to_live(Duration::from_mins(5))
-            .build(),
+        unverified_emails,
     });
     let app = Router::new()
         .route("/subscribe", post(handle_subscribe))
