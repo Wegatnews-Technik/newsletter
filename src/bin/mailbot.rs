@@ -1,14 +1,25 @@
 use anyhow::Context;
-use newsletter::SubscribedEmail;
+use axum::extract::{Query, State};
+use axum::{Router, routing::get};
+use newsletter::{Config, SubscribedEmail};
+use reqwest::StatusCode;
 use rss::Channel;
 use sqlx::postgres::PgPoolOptions;
 use std::fs;
+use std::sync::Arc;
 use tokio::{self, io};
 use tracing::Level;
+use uuid::Uuid;
 
 use lettre::message::{Mailbox, header::ContentType};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
+
+struct AppState {
+    config: Config,
+    mailer: SmtpTransport,
+    sender_email: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -71,6 +82,64 @@ async fn main() -> anyhow::Result<()> {
             .body(email_content.clone() + &link_element)?;
         mailer.send(&email_to_send)?;
     }
+
+    let app_state = Arc::new(AppState {
+        config,
+        mailer,
+        sender_email,
+    });
+    let app = Router::new()
+        .route("/verification-email", get(handle_send_verification_email))
+        .with_state(app_state);
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
+async fn handle_send_verification_email(
+    state: State<Arc<AppState>>,
+    Query(params): Query<SubscribedEmail>,
+) -> StatusCode {
+    let (Some(uuid), Some(address)) = (params.uuid, params.address) else {
+        return StatusCode::BAD_REQUEST;
+    };
+    match send_verification_email(state, address, uuid) {
+        Ok(()) => (),
+        Err(e) => {
+            tracing::event!(Level::WARN, "{}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        }
+    };
+
+    StatusCode::OK
+}
+
+fn send_verification_email(
+    state: State<Arc<AppState>>,
+    address: String,
+    uuid: Uuid,
+) -> anyhow::Result<()> {
+    let link = format!("{}/verify?uuid={}", state.config.base_url, uuid);
+    let content = format!(
+        r#"Diese E-Mail wurde versendet um die E-Mailaddresse für den wegatnews Newsletter zu bestätigen.
+        Wenn du in Zukunft über neue Artikel informiert werden willst, klicke auf den nachfolgenden Link.
+        Wenn dich nicht bewusst für den Newsletter regestriert hast ignoriere bitte diese Nachicht.
+        Bestätigungslink: <a href="{}">{}</a>.
+        Impressum: <a href="wegatnews.de/impressum">wegatnews.de/impressum</a>"#,
+        link, link
+    );
+
+    let email_to_send = Message::builder()
+        .from(Mailbox::new(
+            Some("Wegatnews".to_owned()),
+            state.sender_email.parse()?,
+        ))
+        .to(Mailbox::new(None, address.parse()?))
+        .subject("E-Mail bestätigen")
+        .header(ContentType::TEXT_HTML)
+        .body(content)?;
+    state.mailer.send(&email_to_send)?;
 
     Ok(())
 }

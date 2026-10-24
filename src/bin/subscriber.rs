@@ -105,7 +105,13 @@ async fn handle_subscribe(
         }
     };
     let uuid = sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le());
-    tracing::event!(Level::INFO, "{uuid}");
+
+    let _response = reqwest::get(format!(
+        "http://mailbot:8080/verification-email?address={}&uuid={}",
+        params.address.as_ref().unwrap(),
+        uuid
+    ))
+    .await;
 
     state
         .unverified_emails
