@@ -126,7 +126,7 @@ fn send_verification_email(
         Wenn du in Zukunft über neue Artikel informiert werden willst, klicke auf den nachfolgenden Link.
         Wenn dich nicht bewusst für den Newsletter regestriert hast ignoriere bitte diese Nachicht.
         Bestätigungslink: <a href="{}">{}</a>.
-        Impressum: <a href="wegatnews.de/impressum">wegatnews.de/impressum</a>"#,
+        Impressum: <a href="https://wegatnews.de/impressum">wegatnews.de/impressum</a>"#,
         link, link
     );
 

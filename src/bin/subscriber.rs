@@ -37,6 +37,7 @@ trait TemplateTracing {
 enum SubscribeTemplate {
     Success,
     ValidationError(EmailValidationError),
+    InternalServerError,
 }
 
 #[derive(Template, WebTemplate)]
@@ -106,12 +107,29 @@ async fn handle_subscribe(
     };
     let uuid = sqlx::types::Uuid::from_u128(Uuid::now_v7().to_u128_le());
 
-    let _response = reqwest::get(format!(
+    let response = match reqwest::get(format!(
         "http://mailbot:8080/verification-email?address={}&uuid={}",
         params.address.as_ref().unwrap(),
         uuid
     ))
-    .await;
+    .await
+    {
+        Ok(resp) => resp,
+        Err(e) => {
+            tracing::event!(Level::ERROR, params.address, ?params.uuid, "Error sending verification email: {e}");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                SubscribeTemplate::InternalServerError,
+            );
+        }
+    };
+
+    if response.status() != StatusCode::OK {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeTemplate::InternalServerError,
+        );
+    }
 
     state
         .unverified_emails

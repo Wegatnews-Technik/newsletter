@@ -25,6 +25,9 @@
                     {%- when error -%}
                         {{ error }}
                 {%- endmatch -%}
+            {%- when Self::InternalServerError -%}
+                Es konnte keine Bestätigungsemail gesendet werden. Überprüfe, ob die E-Mail richtig
+                eingegeben wurde.
         {%- endmatch -%}
     </body>
 </html>
