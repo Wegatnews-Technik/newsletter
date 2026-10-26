@@ -57,9 +57,9 @@
 Everytime your change the code and/or html templates run `docker compose build`
 
 ## Project TODO:
-- [ ] Input verification
+- [x] Input verification
   - [x] Check if email exists
-  - [ ] Validation E-mail
+  - [x] Validation E-mail
 - [x] Database setup
 - [x] Allow Password rotation
 - [x] mailbot
