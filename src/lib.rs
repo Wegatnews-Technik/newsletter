@@ -1,12 +1,14 @@
 use check_if_email_exists::{self, CheckEmailInputBuilder, Reachable};
 use serde::Deserialize;
-use std::env;
+use std::{env, time::Duration};
 use thiserror::Error;
 use tracing::Level;
 use uuid::Uuid;
 
 pub struct Config {
     pub base_url: String,
+    pub ttl: Duration,
+    pub unverified_limit: u64,
     pub check_email_exists: bool,
 }
 impl Config {
@@ -14,12 +16,53 @@ impl Config {
         let base_url = match env::var("BASE_URL") {
             Ok(var) => var,
             Err(_) => {
-                tracing::event!(Level::ERROR, "Could not read environment variable");
+                tracing::event!(Level::ERROR, "Could not read environment variable BASE_URL");
                 String::new()
             }
         };
+        let (hours, minutes) = (
+            env::var("TTL_HOURS").unwrap_or(String::from("0")),
+            env::var("TTL_MINUTES").unwrap_or(String::from("0")),
+        );
+        let hours = match hours.parse() {
+            Ok(hours) => hours,
+            _ => {
+                tracing::event!(
+                    Level::ERROR,
+                    "invalid configuration for email verification TTL hours"
+                );
+                0
+            }
+        };
+        let minutes = match minutes.parse() {
+            Ok(minutes) => minutes,
+            _ => {
+                tracing::event!(
+                    Level::ERROR,
+                    "invalid configuration for email verification TTL minutes"
+                );
+                0
+            }
+        };
+        let mut ttl = Duration::from_hours(hours) + Duration::from_mins(minutes);
+        if ttl == Duration::ZERO {
+            ttl = Duration::from_mins(30);
+        }
+        let unverified_limit = match env::var("UNVERIFIED_LIMIT") {
+            Ok(limit) => match limit.parse() {
+                Ok(value) => value,
+                _ => {
+                    tracing::event!(Level::ERROR, "invalid configuration for UNVERIFIED_LIMIT");
+                    100
+                }
+            },
+            _ => 100,
+        };
+
         Config {
             base_url,
+            ttl,
+            unverified_limit,
             check_email_exists: env::var("CHECK_EMAIL_EXISTS").is_ok(),
         }
     }

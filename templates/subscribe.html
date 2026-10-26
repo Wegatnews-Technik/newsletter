@@ -8,7 +8,8 @@
     <body>
         {%- match self -%}
             {%- when Self::Success -%}
-                Die E-Mail wurde erfolgreich hinzugefügt
+                Es wurde eine Bestätigungslink an diese E-Mail gesendet.
+                Klicke den Link in der Nachicht um die E-Mailaddresse zu bestätigen.
             {%- when Self::ValidationError(e) -%}
                 {%- match e -%}
                     {%- when EmailValidationError::ToLong -%}
@@ -24,20 +25,9 @@
                     {%- when error -%}
                         {{ error }}
                 {%- endmatch -%}
-            {%- when Self::DBError(e) -%}
-                {%- match e -%}
-                    {%- when sqlx::Error::Database(e) -%}
-                        {%- match e.kind() -%}
-                            {%- when sqlx::error::ErrorKind::UniqueViolation -%}
-                                Diese E-Mail exestiert bereits
-                            {%- when other -%}
-                                {{ self.trace_error_debug_print(other) }}
-                                Unbekannter Fehler
-                        {%- endmatch -%}
-                    {%- when other -%}
-                        {{  self.trace_error(other) }}
-                        Unbekannter Fehler
-                {%- endmatch -%}
+            {%- when Self::InternalServerError -%}
+                Es konnte keine Bestätigungsemail gesendet werden. Überprüfe, ob die E-Mail richtig
+                eingegeben wurde.
         {%- endmatch -%}
     </body>
 </html>
