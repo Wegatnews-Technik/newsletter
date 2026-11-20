@@ -11,6 +11,8 @@ services:
     post_start:
       - command: /docker-entrypoint-initdb.d/3-update-users.sh
         user: postgres
+    networks:
+      - db_net
     secrets:
       - postgres-master-password
       - pg-subscriber
@@ -25,6 +27,10 @@ services:
     env_file: ".env"
     ports:
       - 8080:8080
+    networks:
+      - db_net
+      - mailbot_net
+      - frontend
     secrets:
       - pg-subscriber
   mailbot:
@@ -35,11 +41,19 @@ services:
     depends_on:
       - db
     env_file: ".env"
+    networks:
+      - db_net
+      - mailbot_net
     secrets:
       - pg-mailbot
       - email-config
 volumes:
   postgres_data:
+networks:
+  db_net:
+    internal: true
+  frontend:
+  mailbot_net:
 secrets:
   postgres-master-password:
     file: ./.secrets/postgres-master-password
