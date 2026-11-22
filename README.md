@@ -51,10 +51,10 @@
     - for check-if-email-exists crate uncomment this line: `CHECK_EMAIL_EXISTS=true`. **This is known to reject valid emails**
 
 2. Ensure correct SELinux label: `container_file_t` for all secrets and init-db contents (Only when your systems uses SELinux)
-3. run `docker compose up`
+3. run `podman-compose up` or `docker compose up`
 
 ## Development
-Everytime your change the code and/or html templates run `docker compose build`
+Everytime your change the code and/or html templates run `podman-compose build` or `docker compose build`
 
 ## Project TODO:
 - [x] Input verification
