@@ -17,6 +17,9 @@ services:
       - postgres-master-password
       - pg-subscriber
       - pg-mailbot
+    user: "70:70"
+    cap_drop:
+      - ALL
   subscriber:
     build:
       context: ./
@@ -33,6 +36,8 @@ services:
       - frontend
     secrets:
       - pg-subscriber
+    cap_drop:
+      - ALL
   mailbot:
     build:
       context: ./
@@ -47,6 +52,8 @@ services:
     secrets:
       - pg-mailbot
       - email-config
+    cap_drop:
+      - ALL
 volumes:
   postgres_data:
 networks:
