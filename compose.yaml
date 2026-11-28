@@ -20,6 +20,7 @@ services:
     user: "70:70"
     cap_drop:
       - ALL
+    no-new-privileges: true
   subscriber:
     build:
       context: ./
@@ -38,6 +39,7 @@ services:
       - pg-subscriber
     cap_drop:
       - ALL
+    no-new-privileges: true
   mailbot:
     build:
       context: ./
@@ -54,6 +56,7 @@ services:
       - email-config
     cap_drop:
       - ALL
+    no-new-privileges: true
 volumes:
   postgres_data:
 networks:
